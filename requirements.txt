@@ -1,0 +1,6 @@
+pandas
+numpy
+torch
+torchvision
+skimage
+e2cnn
