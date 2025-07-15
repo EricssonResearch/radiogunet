@@ -4,6 +4,7 @@ Testing script for GUNet model evaluation.
 
 from __future__ import print_function, division
 import os
+import argparse
 import sys
 import subprocess
 import time
@@ -101,35 +102,43 @@ def test_loss(model, dataset="coarse"):
     elapsed_time = time.time() - since
     print(f"Test time: {elapsed_time//60:.0f}m {elapsed_time%60:.0f}s")
 
+def create_parser():
+    parser = argparse.ArgumentParser(description="Test GUNet model on RadioMapSeer")
+    parser.add_argument('--model_path', type=str, required=True, help='Path to trained model')
+    parser.add_argument('--dataset_path', type=str, required=True, help='Path to RadioMapSeer dataset')
+    parser.add_argument('--experiment_type', type=str, choices=['DPM_cars', 'DPM_no_car', 'IRT_cars', 'IRT_no_car'], required=True, help='Experiment type')
+    parser.add_argument('--symmetry_group', type=str, choices=['C2', 'D2', 'C4', 'D4', 'C8', 'D8'], default='D8', help='Equivariance symmetry group')
+    return parser
 
-def main():
-    # Setup paths and logging
-    model_path = 'path/to/model/'
-    dataset_path = 'path/to/RadioMapSeer/'
-    
+def test(args):
+    model_path = args.model_path
+    dataset_path = args.dataset_path
+
     log_filename = os.path.join(model_path, "test_loss.txt")
     os.makedirs(os.path.dirname(log_filename), exist_ok=True)
     sys.stdout = func.Logger(log_filename)
-    
+
     global device, Radio_test
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    
-    # Load test dataset - choose one option:
-    # Option 1: DPM no Cars (comment out to use other options)
-    Radio_test = loaders.RadioUNet_c(phase="test", dir_dataset=dataset_path, thresh=0.2)
-    
-    # # Option 2: IRT2 no Cars (comment out to use other options)
-    # Radio_test = loaders.RadioUNet_c(phase="test", dir_dataset=dataset_path, thresh=0.2, simulation="IRT2")
 
-    # # Option 3: DPM with Cars (comment out to use other options)
-    # Radio_test = loaders.RadioUNet_c(phase="test",dir_dataset=dataset_path, thresh=0.2, carsSimul="yes", carsInput="yes")
+    # Configure loader arguments based on experiment_type
+    loader_kwargs = {
+        "phase": "test",
+        "dir_dataset": dataset_path,
+        "thresh": 0.2
+    }
+    if 'cars' in args.experiment_type:
+        loader_kwargs["carsSimul"] = "yes"
+        loader_kwargs["carsInput"] = "yes"
+    if args.experiment_type.startswith("IRT"):
+        loader_kwargs["simulation"] = "IRT2"
 
-    # # Option 4: IRT2 with Cars (comment out to use other options)
-    # Radio_test = loaders.RadioUNet_c(phase="test",dir_dataset=dataset_path, thresh=0.2, carsSimul="yes", carsInput="yes", simulation="IRT2")
-    
-    # Model configuration
+    Radio_test = loaders.RadioUNet_c(**loader_kwargs)
+
+    # Configure model
+    in_channels = 3 if 'cars' in args.experiment_type else 2
     config = {
-        'in_channels': 3,           # Use 2 for standard/IRT2, 3 for car simulation
+        'in_channels': in_channels,
         'out_channels': 1,
         'channels': [6, 50, 100, 100, 170],
         'image_size': 256,
@@ -139,17 +148,20 @@ def main():
         'kernel_size': 3,
         'padding': 1,
         'equvariant_mask': False,
-        'group': "D2"               # Rotation group for equivariance
+        'group': args.symmetry_group
     }
-    
+
     # Initialize and load model
     model = G_UNet(config, model_path=model_path).to(device)
     model.load_state_dict(torch.load(os.path.join(model_path, 'best_model.pt')))
     print('Model weights loaded successfully!')
-    
+
     # Run test evaluation
     test_loss(model, dataset="coarse")
 
 
 if __name__ == "__main__":
-    main()
+    parser = create_parser()
+    args = parser.parse_args()
+    test(args)
+
