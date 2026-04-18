@@ -89,4 +89,15 @@ python3 test.py \
 
 ## Citation
 
-
+```
+@INPROCEEDINGS{11314083,
+  author={Yang, Ziyue and Liu, Feng and Jin, Yifei and Vandikas, Konstantinos},
+  booktitle={2025 4th International Conference on 6G Networking (6GNet)}, 
+  title={Group Equivariant Convolutional Networks for Pathloss Estimation}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={111-115},
+  keywords={Deep learning;6G mobile communication;Wireless communication;Neural networks;Data preprocessing;Estimation;Reflection;Data models;Convolutional neural networks;Software development management;CNN;UNet;equivariant neural networks;deep learning;propagation map},
+  doi={10.1109/6GNet68413.2025.11314083}}
+```
